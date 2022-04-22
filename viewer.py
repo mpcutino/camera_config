@@ -4,7 +4,7 @@ import time
 import cv2
 import numpy as np
 
-from PyQt5.QtMultimedia import QCameraInfo
+# from PyQt5.QtMultimedia import QCameraInfo
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread
 from PyQt5.QtGui import QPixmap
@@ -23,7 +23,7 @@ class VideoThread(QThread):
 
     def run(self):
         # capture from web cam
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(0,cv2.CAP_V4L2)
         while self._run_flag:
             ret, cv_img = self.cap.read()
             if ret:
@@ -49,54 +49,58 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
 
         # getting available cameras
-        available_cameras = QCameraInfo.availableCameras()
+        # available_cameras = QCameraInfo.availableCameras()
         # if no camera found
-        if not available_cameras:
+        # if not available_cameras:
             # exit the code
-            sys.exit()
+        #    sys.exit()
 
-        self.disply_width = 640
+        self.display_width = 640
         self.display_height = 480
-        self.img_lbl.resize(self.disply_width, self.display_height)
+        print("RESOLUTION: {}x{}".format(self.display_width,self.display_height))
+        self.img_lbl.resize(self.display_width, self.display_height)
         # create the video capture thread
         self.thread = VideoThread()
         # connect its signal to the update_image slot
         self.thread.change_pixmap_signal.connect(self.update_image)
         # start the thread
         self.thread.start()
-        time.sleep(1)   # give time to the thread to start
+        time.sleep(3)   # give time to the thread to start
 
         # set the value according to the current value
+        # brightness
         self.bright_hslider.setMaximum(256)
         br_value = int(self.thread.get_prop(cv2.CAP_PROP_BRIGHTNESS))
+        self.bright_hslider.valueChanged.connect(self.adjust_brightness)
         self.bright_hslider.setValue(br_value)
         self.bright_lbl_out.setText(self.to_size_three(br_value))
-        self.bright_hslider.valueChanged.connect(self.adjust_brightness)
 
         # saturation
         self.sat_hslider.setMaximum(256)
         sat_value = int(self.thread.get_prop(cv2.CAP_PROP_SATURATION))
+        self.sat_hslider.valueChanged.connect(self.adjust_saturation)
         self.sat_hslider.setValue(sat_value)
         self.sat_lbl_out.setText(self.to_size_three(sat_value))
-        self.sat_hslider.valueChanged.connect(self.adjust_saturation)
 
         # gain
         self.gain_hslider.setMaximum(256)
         gain_value = int(self.thread.get_prop(cv2.CAP_PROP_GAIN))
+        self.gain_hslider.valueChanged.connect(self.adjust_gain)
         self.gain_hslider.setValue(gain_value)
         self.gain_lbl_out.setText(self.to_size_three(gain_value))
-        self.gain_hslider.valueChanged.connect(self.adjust_gain)
 
         # contrast
         self.contrast_hslider.setMaximum(256)
         contrast_value = int(self.thread.get_prop(cv2.CAP_PROP_CONTRAST))
+        self.contrast_hslider.valueChanged.connect(self.adjust_contrast)
         self.contrast_hslider.setValue(contrast_value)
         self.contrast_lbl_out.setText(self.to_size_three(contrast_value))
-        self.contrast_hslider.valueChanged.connect(self.adjust_contrast)
 
         # exposure
         self.exp_hslider.setMaximum(1001)
         auto_exp = int(self.thread.get_prop(cv2.CAP_PROP_AUTO_EXPOSURE)) == 3
+        self.exp_hslider.valueChanged.connect(self.adjust_exposure)
+        self.auto_exp_cbox.stateChanged.connect(self.auto_exp_changed)
         self.auto_exp_cbox.setChecked(auto_exp)
 
         self.exp_hslider.setEnabled(not auto_exp)
@@ -105,8 +109,6 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.exp_hslider.setValue(exp_value)
             self.exp_lbl_out.setText(self.to_size_three(exp_value))
 
-        self.exp_hslider.valueChanged.connect(self.adjust_exposure)
-        self.auto_exp_cbox.stateChanged.connect(self.auto_exp_changed)
 
         # defaults
         self.defaul_cbox.stateChanged.connect(self.set_props_default)
@@ -142,9 +144,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.exp_lbl_out.setText(self.to_size_three(exp_value))
 
     def set_props_default(self):
-        self.bright_hslider.setValue(128)
-        self.sat_hslider.setValue(128)
-        self.contrast_hslider.setValue(128)
+        self.bright_hslider.setValue(0)
+        self.sat_hslider.setValue(60)
+        self.contrast_hslider.setValue(32)
         self.gain_hslider.setValue(0)
         self.auto_exp_cbox.setChecked(True)
 
@@ -165,7 +167,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         h, w, ch = rgb_image.shape
         bytes_per_line = ch * w
         convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
-        p = convert_to_Qt_format.scaled(self.disply_width, self.display_height, Qt.KeepAspectRatio)
+        p = convert_to_Qt_format.scaled(self.display_width, self.display_height, Qt.KeepAspectRatio)
         return QPixmap.fromImage(p)
 
     @staticmethod
